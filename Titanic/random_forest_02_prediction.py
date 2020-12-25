@@ -30,7 +30,7 @@ def prediction(params):
 
     rf_model = RandomForestClassifier(random_state=31, max_depth=params['max_depth'],
                                       n_estimators=params['n_estimators'],
-                                      min_samples_split=params['min_samples_split'])
+                                      max_features=params['max_features'])
 
     family_survive_rate_train = cal_family_survive_rate(train_df)
     default_survive_rate = -1
@@ -59,7 +59,10 @@ def prediction(params):
 
     selected_columns = ['FareAdjusted', 'Pclass_1', 'Pclass_2', 'Pclass_3', 'Embarked_C', 'Embarked_Q', 'Embarked_S',
                         'SibSp', 'Parch', 'AgeEncoded', 'Sex_Survive_female_normal', 'Sex_Survive_female_special',
-                        'Sex_Survive_male_normal', 'Sex_Survive_male_special']
+                        'Sex_Survive_male_normal', 'Sex_Survive_male_special', 'CabinEncoded_ABCT', 'CabinEncoded_DE',
+                        'CabinEncoded_FG', 'CabinEncoded_M', 'FamilySizeEncode_1',
+                        'FamilySizeEncode_2', 'FamilySizeEncode_3', 'FamilySizeEncode_4']
+
     rf_model.fit(train_df[selected_columns], train_df['Survived'])
     plot_first_tree(rf_model, feature_names=selected_columns,
                     file_name_id="{}_{}_{}".format(params['max_depth'], params['n_estimators'], randrange(100)))
@@ -70,11 +73,18 @@ def prediction(params):
     })
 
     test_df['Prediction'] = rf_model.predict(test_df[selected_columns]).astype(int)
+
+    print({
+        "train_df_truth": train_df.groupby(['Sex']).agg({'Survived': ['count', 'mean']}),
+        "train_df_predict": train_df.groupby(['Sex']).agg({'Prediction': ['count', 'mean']}),
+        "test_df_predict": test_df.groupby(['Sex']).agg({'Prediction': ['count', 'mean']})
+    })
+
     test_df['PassengerId'] = test_df.index
     submit = test_df[['PassengerId', 'Prediction']]
     submit.columns = ['PassengerId', 'Survived']
-    submit[['PassengerId', 'Survived']].to_csv("random_forest_submission_rf_02.csv", index=False)
+    submit[['PassengerId', 'Survived']].to_csv("random_forest_submission_rf_04.csv", index=False)
 
 
 if __name__ == "__main__":
-    prediction(params={'max_depth': 4, 'min_samples_split': 2, 'n_estimators': 500})
+    prediction(params={'max_depth': 5, 'max_features': 'sqrt', 'n_estimators': 500})
