@@ -63,7 +63,7 @@ def prediction(params):
     test_df['PassengerId'] = test_df.index
     submit = test_df[['PassengerId', 'Prediction']]
     submit.columns = ['PassengerId', 'Survived']
-    submit[['PassengerId', 'Survived']].to_csv("random_forest_submission_rf_01.csv", index=False)
+    submit[['PassengerId', 'Survived']].to_csv("./Titanic/submission_rf_01.csv", index=False)
 
 
 if __name__ == "__main__":

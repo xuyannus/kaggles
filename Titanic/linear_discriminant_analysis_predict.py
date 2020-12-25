@@ -76,7 +76,7 @@ def prediction():
     test_df['PassengerId'] = test_df.index
     submit = test_df[['PassengerId', 'Prediction']]
     submit.columns = ['PassengerId', 'Survived']
-    submit[['PassengerId', 'Survived']].to_csv("lda_submission_01.csv", index=False)
+    submit[['PassengerId', 'Survived']].to_csv("./Titanic/submission_lda_01.csv", index=False)
 
 
 if __name__ == "__main__":

@@ -64,6 +64,9 @@ def prediction(params):
                         'FamilySizeEncode_2', 'FamilySizeEncode_3', 'FamilySizeEncode_4']
 
     rf_model.fit(train_df[selected_columns], train_df['Survived'])
+    for x, y in zip(selected_columns, rf_model.feature_importances_):
+        print("{}->{}".format(x, y))
+
     plot_first_tree(rf_model, feature_names=selected_columns,
                     file_name_id="{}_{}_{}".format(params['max_depth'], params['n_estimators'], randrange(100)))
 
@@ -83,7 +86,7 @@ def prediction(params):
     test_df['PassengerId'] = test_df.index
     submit = test_df[['PassengerId', 'Prediction']]
     submit.columns = ['PassengerId', 'Survived']
-    submit[['PassengerId', 'Survived']].to_csv("random_forest_submission_rf_04.csv", index=False)
+    submit[['PassengerId', 'Survived']].to_csv("./Titanic/submission_rf_04.csv", index=False)
 
 
 if __name__ == "__main__":
