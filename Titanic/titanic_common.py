@@ -42,3 +42,14 @@ def family_size_encoding(x):
         return 3
     else:
         return 4
+
+
+def fare_encoding(x):
+    if x <= 5:
+        return 1
+    elif x <= 10:
+        return 2
+    elif x <= 30:
+        return 3
+    else:
+        return 4
