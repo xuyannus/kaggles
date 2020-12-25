@@ -29,3 +29,6 @@ def explore_dataframe(df):
     print("==================")
     print(df.columns)
 
+
+def explore_none(df):
+    print(df.apply(lambda x: x.isna().sum()))
