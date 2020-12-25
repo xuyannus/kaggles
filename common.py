@@ -31,4 +31,7 @@ def explore_dataframe(df):
 
 
 def explore_none(df):
+    print("==================")
+    print("Missing Values")
+    print("==================")
     print(df.apply(lambda x: x.isna().sum()))
