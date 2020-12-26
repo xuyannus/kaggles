@@ -32,6 +32,8 @@ def prediction(params):
     test_feature_df = features_df.tail(test_df.shape[0])
     y_train = np.log(train_df['SalePrice'].values)
 
+    import pdb; pdb.set_trace()
+
     rf_model = RandomForestRegressor(random_state=31,
                                      max_depth=params['max_depth'],
                                      n_estimators=params['n_estimators'],

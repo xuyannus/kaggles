@@ -94,13 +94,13 @@ def hyper_params_tuning():
     }
 
     optimal_params = None
-    optimal_accuracy = 0.0
+    optimal_accuracy = 100.0
     for params in ParameterGrid(param_grid):
         result = cross_validate(features_df, train_df['SalePrice'].values, params)
         print("---------------")
         print(params)
         print(result)
-        if optimal_accuracy < result['mean_test_accuracy']:
+        if optimal_accuracy > result['mean_test_accuracy']:
             optimal_accuracy = result['mean_test_accuracy']
             optimal_params = params
 

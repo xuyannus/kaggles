@@ -4,8 +4,7 @@ from subprocess import call
 
 import pandas as pd
 import numpy as np
-from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
-from sklearn.linear_model import Ridge
+from sklearn.linear_model import ElasticNet
 
 from sklearn.metrics import accuracy_score, mean_squared_error
 from sklearn.model_selection import KFold, ParameterGrid
@@ -27,47 +26,8 @@ def selected_features(df):
     return df[FEATURES]
 
 
-def fill_missing_garage_area(x, default_garage_area):
-    if pd.isna(x['GarageArea']):
-        return default_garage_area[x['YearBuilt']]
-    else:
-        return x['GarageArea']
-
-
-def fill_missing_garage_cars(x, default_garage_cars):
-    if pd.isna(x['GarageCars']):
-        return default_garage_cars[x['YearBuilt']]
-    else:
-        return x['GarageCars']
-
-
-def fill_missing_total_bsmt(x, df):
-    if pd.isna(x['TotalBsmtSF']):
-        benchmark = x['1stFlrSF']
-        return df[(df['1stFlrSF'] >= (benchmark - 100)) & (df['1stFlrSF'] <= (benchmark + 100))]['TotalBsmtSF'].median()
-    else:
-        return x['TotalBsmtSF']
-
-
-def fill_missing_bsmt_fin_1(x, df):
-    if pd.isna(x['BsmtFinSF1']):
-        benchmark = x['1stFlrSF']
-        return df[(df['1stFlrSF'] >= (benchmark - 100)) & (df['1stFlrSF'] <= (benchmark + 100))]['BsmtFinSF1'].median()
-    else:
-        return x['BsmtFinSF1']
-
-
 def missing_data_filling(df):
-    default_garage_area = df.groupby('YearBuilt')['GarageArea'].median().to_dict()
-    df['GarageArea'] = df.apply(lambda x: fill_missing_garage_area(x, default_garage_area), axis=1)
-
-    default_garage_cars = df.groupby('YearBuilt')['GarageCars'].median().to_dict()
-    df['GarageCars'] = df.apply(lambda x: fill_missing_garage_cars(x, default_garage_cars), axis=1)
-
-    df['TotalBsmtSF'] = df.apply(lambda x: fill_missing_total_bsmt(x, df), axis=1)
-    df['BsmtFinSF1'] = df.apply(lambda x: fill_missing_bsmt_fin_1(x, df), axis=1)
-
-    explore_none(df)
+    # explore_none(df)
     return df
 
 
@@ -99,21 +59,15 @@ def cross_validate(features_df, y, params, k=3):
         y_train = np.log(y[tune_train_index])
         y_test = np.log(y[tune_test_index])
 
-        rf_model = RandomForestRegressor(random_state=31,
-                                         max_depth=params['max_depth'],
-                                         n_estimators=params['n_estimators'],
-                                         max_features=params['max_features'])
-
-        import pdb; pdb.set_trace()
-
-        rf_model.fit(X_train, y_train)
+        lm = ElasticNet(random_state=0, alpha=params['alpha'], l1_ratio=params['l1_ratio'])
+        lm.fit(X_train, y_train)
 
         # print("===========")
-        # for a, b in zip(rf_model.feature_importances_, FEATURES):
+        # for a, b in zip(lm.coef_, FEATURES):
         #     print("{}->{}".format(b, a))
 
-        y_train_hat = rf_model.predict(X_train)
-        y_test_hat = rf_model.predict(X_test)
+        y_train_hat = lm.predict(X_train)
+        y_test_hat = lm.predict(X_test)
 
         train_accuracy_list.append(cal_accuracy(y_train, y_train_hat))
         test_accuracy_list.append(cal_accuracy(y_test, y_test_hat))
@@ -133,12 +87,11 @@ def hyper_params_tuning():
     features_df = missing_data_filling(features_df)
     features_df = extract_common_features(features_df)
     features_df = one_hot_encoding(features_df)
-    # features_df = normalize_features(features_df)
+    features_df = normalize_features(features_df)
 
     param_grid = {
-        'max_depth': [3, 4, 5, 6, 7, 8, 9, 10],
-        'max_features': ["sqrt", None],
-        'n_estimators': [20, 50, 100, 500]
+        'alpha': [0.001, 0.01, 0.1, 1, 10, 100],
+        'l1_ratio': [0.0, 0.2, 0.5, 0.8, 1.0]
     }
 
     optimal_params = None
@@ -158,6 +111,5 @@ def hyper_params_tuning():
     })
 
 
-# {'optimal_params': {'max_depth': 10, 'max_features': 'sqrt', 'n_estimators': 500}, 'optimal_accuracy': 0.14826421440179333}
 if __name__ == "__main__":
     hyper_params_tuning()
