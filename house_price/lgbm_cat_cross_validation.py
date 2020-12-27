@@ -2,10 +2,10 @@ import os
 from random import randrange
 from subprocess import call
 
+import random
 import pandas as pd
 import numpy as np
-from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
-from sklearn.linear_model import Ridge
+import lightgbm as lgb
 
 from sklearn.metrics import accuracy_score, mean_squared_error
 from sklearn.model_selection import KFold, ParameterGrid
@@ -76,16 +76,16 @@ def fill_missing_garage_cars(x, default_garage_cars):
 
 def fill_missing_total_bsmt(x, df):
     if pd.isna(x['TotalBsmtSF']):
-        benchmark = x['1stFlrSF']
-        return df[(df['1stFlrSF'] >= (benchmark - 100)) & (df['1stFlrSF'] <= (benchmark + 100))]['TotalBsmtSF'].median()
+        benchmark = x['GrLivArea']
+        return df[(df['GrLivArea'] >= (benchmark - 100)) & (df['GrLivArea'] <= (benchmark + 100))]['TotalBsmtSF'].median()
     else:
         return x['TotalBsmtSF']
 
 
 def fill_missing_bsmt_fin_1(x, df):
     if pd.isna(x['BsmtFinSF1']):
-        benchmark = x['1stFlrSF']
-        return df[(df['1stFlrSF'] >= (benchmark - 100)) & (df['1stFlrSF'] <= (benchmark + 100))]['BsmtFinSF1'].median()
+        benchmark = x['GrLivArea']
+        return df[(df['GrLivArea'] >= (benchmark - 100)) & (df['GrLivArea'] <= (benchmark + 100))]['BsmtFinSF1'].median()
     else:
         return x['BsmtFinSF1']
 
@@ -110,7 +110,6 @@ def missing_data_filling(df):
     df['BsmtHalfBath'].fillna(0, inplace=True)
 
     explore_none(df)
-
     return df
 
 
@@ -147,7 +146,7 @@ def bin_negihbour(x):
 def bin_total_sq_feet(x):
     if x <= 1000:
         return 1
-    elif x<= 2000:
+    elif x <= 2000:
         return 2
     elif x <= 2500:
         return 3
@@ -169,7 +168,7 @@ def extract_common_features(df):
     df.drop(['YearBuilt', 'YearRemodAdd'], axis=1, inplace=True)
 
     df.loc[:, 'Neighborhood'] = df['Neighborhood'].apply(lambda x: bin_negihbour(x))
-    df.loc[:, 'MoSold'] = df['MoSold'].apply(lambda x: int((x - 1) / 3))
+    df.loc[:, 'MoSold'] = df['MoSold'].apply(lambda x: int((x - 1) / 3 + 1))
 
     df.loc[:, 'TotalSqFeet'] = df['GrLivArea'] + df['TotalBsmtSF']
     df.loc[:, 'TotalSqFeet'] = df['TotalSqFeet'].apply(lambda x: bin_total_sq_feet(x))
@@ -188,11 +187,12 @@ def drop_outliers(df):
 
 def one_hot_encoding(df):
     for cat_fea in CAT_FEATURES:
-        encoder = OneHotEncoder(handle_unknown='ignore')
-        encoder.fit(df[[cat_fea]])
-        temp_df = pd.DataFrame(encoder.transform(df[[cat_fea]]).toarray(), columns=encoder.get_feature_names([cat_fea]), index=df.index)
-        df = pd.concat([df, temp_df], axis=1)
-        df.drop(cat_fea, axis=1, inplace=True)
+        df[cat_fea] = df[cat_fea].astype('category')
+
+        print("--------")
+        print(cat_fea)
+        print(df.groupby(cat_fea).count())
+        print("--------")
     return df
 
 
@@ -207,6 +207,14 @@ def print_top_k_features(model, features):
     print("---------")
 
 
+# def random_validation(df, y, rate=0.5):
+#     ll = list(range(df.shape[0]))
+#     random.shuffle(ll)
+#     test_size = int(df.shape[0] * rate)
+#     test_index = ll[:test_size]
+#     return (df.iloc[test_index], y[test_index])
+
+
 def cross_validate(features_df, y, params, k=5):
     kf3 = KFold(n_splits=k, shuffle=True)
     train_accuracy_list = []
@@ -218,16 +226,18 @@ def cross_validate(features_df, y, params, k=5):
         y_train = np.log(y[tune_train_index])
         y_test = np.log(y[tune_test_index])
 
-        rf_model = RandomForestRegressor(random_state=31,
-                                         max_depth=params['max_depth'],
-                                         n_estimators=params['n_estimators'],
-                                         min_samples_leaf=params['min_samples_leaf'],
-                                         max_features=params['max_features'])
-        rf_model.fit(X_train, y_train)
-        # print_top_k_features(rf_model, X_train.columns)
+        model = lgb.LGBMRegressor(random_state=31,
+                                  num_leaves=params['num_leaves'],
+                                  min_child_samples=params['min_child_samples'],
+                                  lambda_l2=params['lambda_l2'],
+                                  learning_rate=params['learning_rate'],
+                                  n_estimators=params['n_estimators'])
 
-        y_train_hat = rf_model.predict(X_train)
-        y_test_hat = rf_model.predict(X_test)
+        model.fit(X_train, y_train, eval_set=(X_train, y_train), verbose=False)
+        # print_top_k_features(model, X_train.columns)
+
+        y_train_hat = model.predict(X_train)
+        y_test_hat = model.predict(X_test)
 
         train_accuracy_list.append(cal_accuracy(y_train, y_train_hat))
         test_accuracy_list.append(cal_accuracy(y_test, y_test_hat))
@@ -245,16 +255,18 @@ def hyper_params_tuning():
     train_df = drop_outliers(train_df)
 
     y = train_df['SalePrice'].values
+
     features_df = selected_features(train_df)
     features_df = missing_data_filling(features_df)
     features_df = extract_common_features(features_df)
     features_df = one_hot_encoding(features_df)
 
     param_grid = {
-        'max_depth': [5, 10, 50],
-        'max_features': [None],
-        'min_samples_leaf': [4, 8, 16, 32],
-        'n_estimators': [20, 50, 100, 500]
+        'num_leaves': [10, 50, 100, 500],
+        'min_child_samples': [4, 8, 16, 32],
+        'lambda_l2': [0, 0.001, 0.01, 0.1],
+        'learning_rate': [0.1, 0.05, 0.02, 0.01],
+        'n_estimators': [5, 10, 20, 50, 100, 200, 500]
     }
 
     optimal_params = None
@@ -274,6 +286,6 @@ def hyper_params_tuning():
     })
 
 
-# {'max_depth': 10, 'max_features': None, 'min_samples_leaf': 4, 'n_estimators': 100}, 'optimal_accuracy': 0.14305061923002066}
+# {'optimal_params': {'lambda_l2': 0.01, 'learning_rate': 0.02, 'min_child_samples': 4, 'n_estimators': 500, 'num_leaves': 10}, 'optimal_accuracy': 0.13182985971742248}
 if __name__ == "__main__":
     hyper_params_tuning()

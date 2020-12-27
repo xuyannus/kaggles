@@ -104,8 +104,6 @@ def cross_validate(features_df, y, params, k=3):
                                          n_estimators=params['n_estimators'],
                                          max_features=params['max_features'])
 
-        import pdb; pdb.set_trace()
-
         rf_model.fit(X_train, y_train)
 
         # print("===========")
