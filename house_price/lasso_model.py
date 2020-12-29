@@ -15,8 +15,8 @@ from scipy.stats import boxcox_normmax
 
 
 def load_data():
-    train_df = pd.read_csv(os.path.dirname(__file__) + "/data/train.csv")
-    test_df = pd.read_csv(os.path.dirname(__file__) + "/data/test.csv")
+    train_df = pd.read_csv(os.path.dirname(__file__) + "/data/train.csv", index_col="Id")
+    test_df = pd.read_csv(os.path.dirname(__file__) + "/data/test.csv", index_col="Id")
     return train_df, test_df
 
 
@@ -100,7 +100,98 @@ def one_hot_encoding(df):
     return pd.get_dummies(df)
 
 
-def missing_value_fill(df):
+def missing_value_fill_individual(df):
+    df["MSZoning"].fillna(df["MSZoning"].mode()[0], inplace=True)
+    df["LotFrontage"].fillna(0, inplace=True)
+
+    df["Alley"] = df["Alley"].astype('object')
+    df["Alley"].fillna("NA", inplace=True)
+    df["Alley"] = df["Alley"].astype('category')
+
+    df["Utilities"].fillna(df["Utilities"].mode()[0], inplace=True)
+    df["Exterior1st"].fillna(df["Exterior1st"].mode()[0], inplace=True)
+    df["Exterior2nd"].fillna(df["Exterior2nd"].mode()[0], inplace=True)
+
+    df["MasVnrType"] = df["MasVnrType"].astype('object')
+    df["MasVnrType"].fillna("NA", inplace=True)
+    df["MasVnrType"] = df["MasVnrType"].astype('category')
+
+    df["MasVnrArea"].fillna(0, inplace=True)
+
+    df["BsmtQual"] = df["BsmtQual"].astype('object')
+    df["BsmtQual"].fillna("NA", inplace=True)
+    df["BsmtQual"] = df["BsmtQual"].astype('category')
+
+    df["BsmtCond"] = df["BsmtCond"].astype('object')
+    df["BsmtCond"].fillna("NA", inplace=True)
+    df["BsmtCond"] = df["BsmtCond"].astype('category')
+
+    df["BsmtExposure"] = df["BsmtExposure"].astype('object')
+    df["BsmtExposure"].fillna("NA", inplace=True)
+    df["BsmtExposure"] = df["BsmtExposure"].astype('category')
+
+    df["BsmtFinType1"] = df["BsmtFinType1"].astype('object')
+    df["BsmtFinType1"].fillna("NA", inplace=True)
+    df["BsmtFinType1"] = df["BsmtFinType1"].astype('category')
+
+    df["BsmtFinSF1"].fillna(df["BsmtFinSF1"].median(), inplace=True)
+
+    df["BsmtFinType2"] = df["BsmtFinType2"].astype('object')
+    df["BsmtFinType2"].fillna("NA", inplace=True)
+    df["BsmtFinType2"] = df["BsmtFinType2"].astype('category')
+
+    df["BsmtFinSF2"].fillna(df["BsmtFinSF2"].median(), inplace=True)
+    df["BsmtUnfSF"].fillna(0, inplace=True)
+    df["TotalBsmtSF"].fillna(df["TotalBsmtSF"].median(), inplace=True)
+
+    df["Electrical"].fillna(df["Electrical"].mode()[0], inplace=True)
+    df["BsmtFullBath"].fillna(0, inplace=True)
+    df["BsmtHalfBath"].fillna(0, inplace=True)
+
+    df["KitchenQual"].fillna(df["KitchenQual"].mode()[0], inplace=True)
+    df["Functional"].fillna(df["Functional"].mode()[0], inplace=True)
+
+    df["FireplaceQu"] = df["FireplaceQu"].astype('object')
+    df["FireplaceQu"].fillna("NA", inplace=True)
+    df["FireplaceQu"] = df["FireplaceQu"].astype('category')
+
+    df["GarageType"] = df["GarageType"].astype('object')
+    df["GarageType"].fillna("NA", inplace=True)
+    df["GarageType"] = df["GarageType"].astype('category')
+
+    df["GarageYrBlt"].fillna(df["GarageYrBlt"].mode()[0], inplace=True)
+
+    df["GarageFinish"] = df["GarageFinish"].astype('object')
+    df["GarageFinish"].fillna("NA", inplace=True)
+    df["GarageFinish"] = df["GarageFinish"].astype('category')
+
+    df["GarageCars"].fillna(df["GarageCars"].mode()[0], inplace=True)
+    df["GarageArea"].fillna(df["GarageArea"].median(), inplace=True)
+
+    df["GarageQual"] = df["GarageQual"].astype('object')
+    df["GarageQual"].fillna("NA", inplace=True)
+    df["GarageQual"] = df["GarageQual"].astype('category')
+
+    df["GarageCond"] = df["GarageCond"].astype('object')
+    df["GarageCond"].fillna("NA", inplace=True)
+    df["GarageCond"] = df["GarageCond"].astype('category')
+
+    df["PoolQC"] = df["PoolQC"].astype('object')
+    df["PoolQC"].fillna("NA", inplace=True)
+    df["PoolQC"] = df["PoolQC"].astype('category')
+
+    df["Fence"] = df["Fence"].astype('object')
+    df["Fence"].fillna("NA", inplace=True)
+    df["Fence"] = df["Fence"].astype('category')
+
+    df["MiscFeature"] = df["MiscFeature"].astype('object')
+    df["MiscFeature"].fillna("NA", inplace=True)
+    df["MiscFeature"] = df["MiscFeature"].astype('category')
+
+    df["SaleType"].fillna(df["SaleType"].mode()[0], inplace=True)
+
+
+def missing_value_fill_median(df):
     df.fillna(df.median(), inplace=True)
 
 
@@ -131,11 +222,12 @@ def build_lasso(alpha=None):
 
     # feature engineering
     config_categorical_features(combined_df)
+    missing_value_fill_individual(combined_df)
+    # missing_value_fill_median(combined_df)
     # combined_df = extract_common_features(combined_df)
     log_transform_features(combined_df)
     combined_df = normalize_numerical_features(combined_df)
     combined_df = one_hot_encoding(combined_df)
-    missing_value_fill(combined_df)
 
     X_train = combined_df[:train_df.shape[0]]
     X_test = combined_df[train_df.shape[0]:]
@@ -150,7 +242,7 @@ def build_lasso(alpha=None):
 
     # model prediction
     lasso_preds = np.expm1(model.predict(X_test))
-    solution = pd.DataFrame({"id": test_df.Id, "SalePrice": lasso_preds})
+    solution = pd.DataFrame({"id": test_df.index, "SalePrice": lasso_preds})
     solution.to_csv("./house_price/submission_lasso_v1.csv", index=False)
 
 
