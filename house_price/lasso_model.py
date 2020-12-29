@@ -102,7 +102,7 @@ def one_hot_encoding(df):
 
 def missing_value_fill_individual(df):
     df["MSZoning"].fillna(df["MSZoning"].mode()[0], inplace=True)
-    df["LotFrontage"].fillna(0, inplace=True)
+    df["LotFrontage"] = df.groupby("Neighborhood")["LotFrontage"].transform(lambda x: x.fillna(x.median()))
 
     df["Alley"] = df["Alley"].astype('object')
     df["Alley"].fillna("NA", inplace=True)
@@ -211,12 +211,21 @@ def tuning(X_train, y):
     model = LassoCV(alphas=np.linspace(optimal_alpha / 5, optimal_alpha * 5, num=10), cv=5, max_iter=1000)
     model.fit(X_train, y)
     print({"optimal_alpha_2": model.alpha_})
-    print("cross_validation_rmse:", np.mean(np.sqrt(-cross_val_score(model, X_train, y, cv=3, scoring="neg_mean_squared_error"))))
+    print("cross_validation_rmse:",
+          np.mean(np.sqrt(-cross_val_score(model, X_train, y, cv=3, scoring="neg_mean_squared_error"))))
     return model.alpha_
+
+
+def drop_outlier(df):
+    print("before drop_outlier:", df.shape)
+    df.drop(df[(df['GrLivArea'] > 4000) & (df['SalePrice'] < 300000)].index, axis=0, inplace=True)
+    print("after drop_outlier:", df.shape)
 
 
 def build_lasso(alpha=None):
     train_df, test_df = load_data()
+    # drop_outlier(train_df)
+
     combined_df = pd.concat((train_df.loc[:, 'MSSubClass':'SaleCondition'],
                              test_df.loc[:, 'MSSubClass':'SaleCondition']))
 
@@ -239,11 +248,13 @@ def build_lasso(alpha=None):
 
     model = Lasso(alpha=alpha, max_iter=1000)
     model.fit(X_train, y)
+    print("cross_validation_rmse:",
+          np.mean(np.sqrt(-cross_val_score(model, X_train, y, cv=3, scoring="neg_mean_squared_error"))))
 
     # model prediction
     lasso_preds = np.expm1(model.predict(X_test))
     solution = pd.DataFrame({"id": test_df.index, "SalePrice": lasso_preds})
-    solution.to_csv("./house_price/submission_lasso_v1.csv", index=False)
+    solution.to_csv("./house_price/submission_lasso_v2.csv", index=False)
 
 
 if __name__ == "__main__":
