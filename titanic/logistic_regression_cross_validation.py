@@ -11,7 +11,7 @@ from sklearn.model_selection import KFold, ParameterGrid
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.tree import export_graphviz
 
-from Titanic.titanic_common import age_encoding, sex_encoding, cabin_encoding, family_size_encoding, fare_encoding
+from titanic.titanic_common import age_encoding, sex_encoding, cabin_encoding, family_size_encoding, fare_encoding
 from common import explore_none
 
 

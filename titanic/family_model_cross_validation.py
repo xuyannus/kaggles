@@ -4,7 +4,7 @@ import numpy as np
 from sklearn.metrics import accuracy_score
 from sklearn.model_selection import KFold
 
-from Titanic.titanic_common import age_encoding, sex_encoding
+from titanic.titanic_common import age_encoding, sex_encoding
 
 
 def load_data():

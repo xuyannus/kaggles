@@ -2,11 +2,10 @@ import os
 import pandas as pd
 import numpy as np
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
-from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score
 from sklearn.preprocessing import OneHotEncoder
 
-from Titanic.random_forest_02_cross_validation import missing_data_filling, extract_common_features, one_hot_encoding, \
+from titanic.random_forest_02_cross_validation import missing_data_filling, extract_common_features, one_hot_encoding, \
     cal_family_survive_rate, encode_survive_rate, combine_sex_survive_rate
 
 
@@ -52,14 +51,13 @@ def prediction():
                             index=test_df.index)
     test_df = pd.concat([test_df, temp2_df], axis=1)
 
-    selected_columns = ['FareAdjustedEncoded', 'Pclass_1', 'Pclass_2', 'Pclass_3', 'Embarked_C', 'Embarked_Q', 'Embarked_S',
+    selected_columns = ['FareAdjusted', 'Pclass_1', 'Pclass_2', 'Pclass_3', 'Embarked_C', 'Embarked_Q', 'Embarked_S',
                         'SibSp', 'Parch', 'AgeEncoded', 'Sex_Survive_female_normal', 'Sex_Survive_female_special',
                         'Sex_Survive_male_normal', 'Sex_Survive_male_special', 'CabinEncoded_ABCT', 'CabinEncoded_DE',
                         'CabinEncoded_FG', 'CabinEncoded_M', 'FamilySizeEncode_1',
                         'FamilySizeEncode_2', 'FamilySizeEncode_3', 'FamilySizeEncode_4']
 
-    # since all features have similar scales, I am doing scaling here
-    clf = LogisticRegression(random_state=0)
+    clf = LinearDiscriminantAnalysis()
     clf.fit(train_df[selected_columns], train_df['Survived'])
 
     train_df['Prediction'] = clf.predict(train_df[selected_columns]).astype(int)
@@ -78,7 +76,7 @@ def prediction():
     test_df['PassengerId'] = test_df.index
     submit = test_df[['PassengerId', 'Prediction']]
     submit.columns = ['PassengerId', 'Survived']
-    submit[['PassengerId', 'Survived']].to_csv("./Titanic/submission_logistic_01.csv", index=False)
+    submit[['PassengerId', 'Survived']].to_csv("./titanic/submission_lda_01.csv", index=False)
 
 
 if __name__ == "__main__":

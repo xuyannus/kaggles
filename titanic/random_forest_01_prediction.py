@@ -5,8 +5,8 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score
 from sklearn.preprocessing import OneHotEncoder
 
-from Titanic.family_model_cross_validation import missing_data_filling, extract_common_features, cal_family_survive_rate
-from Titanic.random_forest_01_cross_validation import encode_survive_rate, combine_sex_survive_rate
+from titanic.family_model_cross_validation import missing_data_filling, extract_common_features, cal_family_survive_rate
+from titanic.random_forest_01_cross_validation import encode_survive_rate, combine_sex_survive_rate
 
 
 def load_data():
@@ -63,7 +63,7 @@ def prediction(params):
     test_df['PassengerId'] = test_df.index
     submit = test_df[['PassengerId', 'Prediction']]
     submit.columns = ['PassengerId', 'Survived']
-    submit[['PassengerId', 'Survived']].to_csv("./Titanic/submission_rf_01.csv", index=False)
+    submit[['PassengerId', 'Survived']].to_csv("./titanic/submission_rf_01.csv", index=False)
 
 
 if __name__ == "__main__":

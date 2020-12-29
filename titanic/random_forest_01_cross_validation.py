@@ -1,17 +1,12 @@
 import os
-from random import randrange
-from subprocess import call
-
 import pandas as pd
 import numpy as np
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score
 from sklearn.model_selection import KFold, ParameterGrid
 from sklearn.preprocessing import OneHotEncoder
-from sklearn.tree import export_graphviz
 
-from Titanic.titanic_common import age_encoding, sex_encoding, cabin_encoding, family_size_encoding, fare_encoding
-from common import explore_none
+from titanic.titanic_common import age_encoding, sex_encoding
 
 
 def load_data():
@@ -22,11 +17,8 @@ def load_data():
 def missing_data_filling(df):
     # https://www.encyclopedia-titanica.org/titanic-survivor/martha-evelyn-stone.html
     df['Embarked'].fillna("S", inplace=True)
-    df['Cabin'].fillna('M', inplace=True)
-    df['Cabin'] = df['Cabin'].astype(str).str[0].str.upper()
+    df.drop("Cabin", inplace=True, axis=1)
     df['Age'] = df.groupby(['Sex', 'Pclass'])['Age'].apply(lambda x: x.fillna(x.median()))
-    df['Fare'].fillna(7.33, inplace=True)  # average fare for Pclass 3
-    # explore_none(df)
     return df
 
 
@@ -36,48 +28,9 @@ def get_family_id(x):
 
 def extract_common_features(df):
     df['AgeEncoded'] = df['Age'].map(age_encoding)
-    df['CabinEncoded'] = df['Cabin'].map(cabin_encoding)
     df['Surename'] = df['Name'].apply(lambda x: x.split(",")[0].strip().lower())
     df['Family'] = df.apply(lambda x: get_family_id(x), axis=1)
-    df['FamilySize'] = df['SibSp'] + df['Parch'] + 1
-    df['FamilySizeEncode'] = df['FamilySize'].map(family_size_encoding)
-
-    # fare -> individual person
-    temp1 = df.groupby('Ticket')['Surename'].count().to_frame()
-    temp1.reset_index(inplace=True)
-    temp1.columns = ['Ticket', 'TicketSize']
-
-    temp2 = df.merge(temp1, left_on='Ticket', right_on='Ticket', how='left')
-    df['TicketSize'] = temp2['TicketSize'].values
-    df['FareAdjusted'] = df['Fare'] / df['TicketSize']
-    df['FareAdjustedEncoded'] = df['FareAdjusted'].map(fare_encoding)
-
     return df
-
-
-def one_hot_encoding(df):
-    pclass_encoder = OneHotEncoder(handle_unknown='ignore')
-    pclass_encoder.fit(df[['Pclass']])
-    pclass_temp_df = pd.DataFrame(pclass_encoder.transform(df[['Pclass']]).toarray(),
-                                  columns=pclass_encoder.get_feature_names(['Pclass']), index=df.index)
-
-    embarked_encoder = OneHotEncoder(handle_unknown='ignore')
-    embarked_encoder.fit(df[['Embarked']])
-    embarked_temp_df = pd.DataFrame(embarked_encoder.transform(df[['Embarked']]).toarray(),
-                                    columns=embarked_encoder.get_feature_names(['Embarked']), index=df.index)
-
-    cabin_encoder = OneHotEncoder(handle_unknown='ignore')
-    cabin_encoder.fit(df[['CabinEncoded']])
-    cabin_temp_df = pd.DataFrame(cabin_encoder.transform(df[['CabinEncoded']]).toarray(),
-                                 columns=cabin_encoder.get_feature_names(['CabinEncoded']), index=df.index)
-
-    family_size_encoder = OneHotEncoder(handle_unknown='ignore')
-    family_size_encoder.fit(df[['FamilySizeEncode']])
-    family_size_temp_df = pd.DataFrame(family_size_encoder.transform(df[['FamilySizeEncode']]).toarray(),
-                                       columns=family_size_encoder.get_feature_names(['FamilySizeEncode']),
-                                       index=df.index)
-
-    return pd.concat([df, pclass_temp_df, embarked_temp_df, cabin_temp_df, family_size_temp_df], axis=1)
 
 
 def generate_family_survive_rate(x):
@@ -120,7 +73,7 @@ def combine_sex_survive_rate(x):
             return 'male_normal'
 
 
-def model_accuracy(rf_model, X_train, X_test, params):
+def model_accuracy(rf_model, X_train, X_test):
     family_survive_rate_train = cal_family_survive_rate(X_train)
     default_survive_rate = -1
 
@@ -142,19 +95,12 @@ def model_accuracy(rf_model, X_train, X_test, params):
                            index=X_train.index)
     X_train = pd.concat([X_train, temp_df], axis=1)
     temp2_df = pd.DataFrame(surviveEncoder.transform(X_test[['Sex_Survive']]).toarray(),
-                            columns=surviveEncoder.get_feature_names(['Sex_Survive']),
-                            index=X_test.index)
+                           columns=surviveEncoder.get_feature_names(['Sex_Survive']),
+                           index=X_test.index)
     X_test = pd.concat([X_test, temp2_df], axis=1)
 
-    selected_columns = ['FareAdjusted', 'Pclass_1', 'Pclass_2', 'Pclass_3', 'Embarked_C', 'Embarked_Q', 'Embarked_S',
-                        'SibSp', 'Parch', 'AgeEncoded', 'Sex_Survive_female_normal', 'Sex_Survive_female_special',
-                        'Sex_Survive_male_normal', 'Sex_Survive_male_special', 'CabinEncoded_ABCT', 'CabinEncoded_DE',
-                        'CabinEncoded_FG', 'CabinEncoded_M', 'FamilySizeEncode_1',
-                        'FamilySizeEncode_2', 'FamilySizeEncode_3', 'FamilySizeEncode_4']
-
+    selected_columns = ['AgeEncoded', 'Sex_Survive_female_normal', 'Sex_Survive_female_special', 'Sex_Survive_male_normal', 'Sex_Survive_male_special']
     rf_model.fit(X_train[selected_columns], X_train['Survived'])
-    # plot_first_tree(rf_model, feature_names=selected_columns,
-    #                 file_name_id="{}_{}_{}".format(params['max_depth'], params['n_estimators'], randrange(100)))
 
     train_y = X_train['Survived'].values
     prediction_train_y = rf_model.predict(X_train[selected_columns])
@@ -165,22 +111,10 @@ def model_accuracy(rf_model, X_train, X_test, params):
     return accuracy_score(train_y, prediction_train_y), accuracy_score(test_y, prediction_test_y)
 
 
-def plot_first_tree(rf_model, feature_names, file_name_id):
-    export_graphviz(rf_model.estimators_[0],
-                    out_file='tree.dot',
-                    feature_names=feature_names,
-                    precision=2,
-                    filled=True,
-                    rounded=True)
-    call(['/usr/local/bin/dot', '-Tpng', 'tree.dot', '-o',
-          'tree_{}.png'.format(file_name_id), '-Gdpi=600'])
-
-
-def cross_validate(params, k=3):
+def cross_validate(params, k=5):
     train_df = load_data()
     train_df = missing_data_filling(train_df)
     train_df = extract_common_features(train_df)
-    train_df = one_hot_encoding(train_df)
 
     kf3 = KFold(n_splits=k, shuffle=True)
     train_accuracy_list = []
@@ -190,10 +124,9 @@ def cross_validate(params, k=3):
         X_train = train_df.iloc[tune_train_index].copy()
         X_test = train_df.iloc[tune_test_index].copy()
         rf_model = RandomForestClassifier(random_state=31, max_depth=params['max_depth'],
-                                          n_estimators=params['n_estimators'],
-                                          max_features=params['max_features'])
+                                          n_estimators=params['n_estimators'])
 
-        train_accuracy, test_accuracy = model_accuracy(rf_model, X_train, X_test, params)
+        train_accuracy, test_accuracy = model_accuracy(rf_model, X_train, X_test)
         train_accuracy_list.append(train_accuracy)
         test_accuracy_list.append(test_accuracy)
 
@@ -207,17 +140,14 @@ def cross_validate(params, k=3):
 
 def hyper_params_tuning():
     param_grid = {
-        'max_depth': [3, 4, 5, 6, 7, 8],
-        'max_features': ["sqrt", "log2", None],
-        'n_estimators': [20, 50, 100, 500, 1000, 2000, 5000]
+        'max_depth': [2, 3, 4, 5],
+        'n_estimators': [5, 10, 20, 50, 100]
     }
 
     optimal_params = None
     optimal_accuracy = 0.0
     for params in ParameterGrid(param_grid):
         result = cross_validate(params)
-        print("---------------")
-        print(params)
         print(result)
         if optimal_accuracy < result['mean_test_accuracy']:
             optimal_accuracy = result['mean_test_accuracy']
@@ -229,9 +159,9 @@ def hyper_params_tuning():
     })
 
 
-# {'max_depth': 7, 'max_features': 'sqrt', 'n_estimators': 20}
+# {'max_depth': 5, 'n_estimators': 50}
 # example:
-# training accuracy: 0.8981491403627654
-# testing accuracy: 0.8496139602033772
+# training accuracy: 0.8978690294214979
+# testing accuracy: 0.8485594124662608
 if __name__ == "__main__":
     hyper_params_tuning()

@@ -1,12 +1,14 @@
 import os
+from random import randrange
+
 import pandas as pd
 import numpy as np
-from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score
 from sklearn.preprocessing import OneHotEncoder
 
-from Titanic.random_forest_02_cross_validation import missing_data_filling, extract_common_features, one_hot_encoding, \
-    cal_family_survive_rate, encode_survive_rate, combine_sex_survive_rate
+from titanic.random_forest_02_cross_validation import missing_data_filling, extract_common_features, one_hot_encoding, \
+    cal_family_survive_rate, encode_survive_rate, combine_sex_survive_rate, plot_first_tree
 
 
 def load_data():
@@ -15,7 +17,7 @@ def load_data():
     return train_df, test_df
 
 
-def prediction():
+def prediction(params):
     train_df, test_df = load_data()
     combined_df = pd.concat([train_df, test_df])
 
@@ -25,6 +27,10 @@ def prediction():
 
     train_df = combined_df.head(train_df.shape[0])
     test_df = combined_df.tail(test_df.shape[0])
+
+    rf_model = RandomForestClassifier(random_state=31, max_depth=params['max_depth'],
+                                      n_estimators=params['n_estimators'],
+                                      max_features=params['max_features'])
 
     family_survive_rate_train = cal_family_survive_rate(train_df)
     default_survive_rate = -1
@@ -57,15 +63,19 @@ def prediction():
                         'CabinEncoded_FG', 'CabinEncoded_M', 'FamilySizeEncode_1',
                         'FamilySizeEncode_2', 'FamilySizeEncode_3', 'FamilySizeEncode_4']
 
-    clf = LinearDiscriminantAnalysis()
-    clf.fit(train_df[selected_columns], train_df['Survived'])
+    rf_model.fit(train_df[selected_columns], train_df['Survived'])
+    for x, y in zip(selected_columns, rf_model.feature_importances_):
+        print("{}->{}".format(x, y))
 
-    train_df['Prediction'] = clf.predict(train_df[selected_columns]).astype(int)
+    plot_first_tree(rf_model, feature_names=selected_columns,
+                    file_name_id="{}_{}_{}".format(params['max_depth'], params['n_estimators'], randrange(100)))
+
+    train_df['Prediction'] = rf_model.predict(train_df[selected_columns]).astype(int)
     print({
         "training": accuracy_score(train_df['Survived'].values, train_df['Prediction'].values)
     })
 
-    test_df['Prediction'] = clf.predict(test_df[selected_columns]).astype(int)
+    test_df['Prediction'] = rf_model.predict(test_df[selected_columns]).astype(int)
 
     print({
         "train_df_truth": train_df.groupby(['Sex']).agg({'Survived': ['count', 'mean']}),
@@ -76,8 +86,8 @@ def prediction():
     test_df['PassengerId'] = test_df.index
     submit = test_df[['PassengerId', 'Prediction']]
     submit.columns = ['PassengerId', 'Survived']
-    submit[['PassengerId', 'Survived']].to_csv("./Titanic/submission_lda_01.csv", index=False)
+    submit[['PassengerId', 'Survived']].to_csv("./titanic/submission_rf_04.csv", index=False)
 
 
 if __name__ == "__main__":
-    prediction()
+    prediction(params={'max_depth': 5, 'max_features': 'sqrt', 'n_estimators': 500})
