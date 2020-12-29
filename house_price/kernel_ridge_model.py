@@ -4,8 +4,9 @@ import matplotlib
 import os
 import xgboost as xgb
 from scipy.stats import skew
+from sklearn.kernel_ridge import KernelRidge
 from sklearn.linear_model import LassoCV, RidgeCV, ElasticNetCV, Lasso
-from sklearn.model_selection import cross_val_score
+from sklearn.model_selection import cross_val_score, ParameterGrid
 from sklearn.preprocessing import StandardScaler
 
 from common import explore_none
@@ -202,18 +203,38 @@ def normalize_numerical_features(df):
     return df
 
 
-def tuning(X_train, y):
-    model1 = LassoCV(alphas=np.logspace(0, 4, base=0.1, num=20), cv=5, max_iter=1000)
-    model1.fit(X_train, y)
-    print({"optimal_alpha_1": model1.alpha_})
-    optimal_alpha = model1.alpha_
+def cross_validate(features_df, y, params, k=3):
+    model = KernelRidge(**params)
+    cross_accuracy = np.sqrt(-cross_val_score(model, features_df, y, cv=k, scoring="neg_mean_squared_error"))
+    return {
+        "test_accuracy": cross_accuracy,
+        "mean_test_accuracy": np.mean(cross_accuracy),
+    }
 
-    model = LassoCV(alphas=np.linspace(optimal_alpha / 5, optimal_alpha * 5, num=10), cv=5, max_iter=1000)
-    model.fit(X_train, y)
-    print({"optimal_alpha_2": model.alpha_})
-    print("cross_validation_rmse:",
-          np.mean(np.sqrt(-cross_val_score(model, X_train, y, cv=3, scoring="neg_mean_squared_error"))))
-    return model.alpha_
+
+def tuning(X_train, y):
+    param_grid = {
+        'alpha': np.logspace(0, 4, base=0.1, num=20),
+        'kernel': ["polynomial"],
+        'degree': [1, 2, 3]
+    }
+
+    optimal_params = None
+    optimal_accuracy = 100.0
+    for params in ParameterGrid(param_grid):
+        result = cross_validate(X_train, y, params)
+        print("---------------")
+        print(params)
+        print(result)
+        if optimal_accuracy > result['mean_test_accuracy']:
+            optimal_accuracy = result['mean_test_accuracy']
+            optimal_params = params
+
+    print({
+        "optimal_params": optimal_params,
+        "optimal_accuracy": optimal_accuracy
+    })
+    return optimal_params
 
 
 def drop_outlier(df):
@@ -222,7 +243,7 @@ def drop_outlier(df):
     print("after drop_outlier:", df.shape)
 
 
-def build_lasso(alpha=None):
+def build_kernel_ridge(params=None):
     train_df, test_df = load_data()
     # drop_outlier(train_df)
 
@@ -243,10 +264,10 @@ def build_lasso(alpha=None):
     y = np.log1p(train_df["SalePrice"])
 
     # model training
-    if alpha is None:
-        alpha = tuning(X_train, y)
+    if params is None:
+        params = tuning(X_train, y)
 
-    model = Lasso(alpha=alpha, max_iter=1000)
+    model = KernelRidge(**params)
     model.fit(X_train, y)
     print("cross_validation_rmse:",
           np.mean(np.sqrt(-cross_val_score(model, X_train, y, cv=3, scoring="neg_mean_squared_error"))))
@@ -254,8 +275,8 @@ def build_lasso(alpha=None):
     # model prediction
     lasso_preds = np.expm1(model.predict(X_test))
     solution = pd.DataFrame({"id": test_df.index, "SalePrice": lasso_preds})
-    solution.to_csv("./house_price/submission_lasso_v1.csv", index=False)
+    solution.to_csv("./house_price/submission_kernel_ridge_v1.csv", index=False)
 
 
 if __name__ == "__main__":
-    build_lasso()
+    build_kernel_ridge(params={'alpha': 0.054555947811685206, 'degree': 2, 'kernel': 'polynomial'})
