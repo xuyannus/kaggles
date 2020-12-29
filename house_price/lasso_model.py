@@ -4,7 +4,7 @@ import matplotlib
 import os
 import xgboost as xgb
 from scipy.stats import skew
-from sklearn.linear_model import LassoCV, RidgeCV, ElasticNetCV
+from sklearn.linear_model import LassoCV, RidgeCV, ElasticNetCV, Lasso
 from sklearn.model_selection import cross_val_score
 from sklearn.preprocessing import StandardScaler
 
@@ -111,7 +111,20 @@ def normalize_numerical_features(df):
     return df
 
 
-def build_lasso():
+def tuning(X_train, y):
+    model1 = LassoCV(alphas=np.logspace(0, 4, base=0.1, num=20), cv=5, max_iter=1000)
+    model1.fit(X_train, y)
+    print({"optimal_alpha_1": model1.alpha_})
+    optimal_alpha = model1.alpha_
+
+    model = LassoCV(alphas=np.linspace(optimal_alpha / 5, optimal_alpha * 5, num=10), cv=5, max_iter=1000)
+    model.fit(X_train, y)
+    print({"optimal_alpha_2": model.alpha_})
+    print("cross_validation_rmse:", np.mean(np.sqrt(-cross_val_score(model, X_train, y, cv=3, scoring="neg_mean_squared_error"))))
+    return model.alpha_
+
+
+def build_lasso(alpha=None):
     train_df, test_df = load_data()
     combined_df = pd.concat((train_df.loc[:, 'MSSubClass':'SaleCondition'],
                              test_df.loc[:, 'MSSubClass':'SaleCondition']))
@@ -129,23 +142,11 @@ def build_lasso():
     y = np.log1p(train_df["SalePrice"])
 
     # model training
-    model = LassoCV(alphas=[1, 0.1, 0.001, 0.0005, 0.0002], cv=5, max_iter=1000)
+    if alpha is None:
+        alpha = tuning(X_train, y)
+
+    model = Lasso(alpha=alpha, max_iter=1000)
     model.fit(X_train, y)
-    print({"alpha_": model.alpha_})
-    print("cross_validation_rmse:", np.mean(np.sqrt(-cross_val_score(model, X_train, y, cv=3, scoring="neg_mean_squared_error"))))
-
-    feature_importance_df = pd.DataFrame({"name": X_train.columns, "score": model.coef_, "abs_score": abs(model.coef_)})
-    feature_importance_df.sort_values("abs_score", ascending=False, inplace=True)
-    print(feature_importance_df.head(5))
-
-    # model = RidgeCV(alphas=[1, 0.1, 0.001, 0.0005], cv=5)
-    # model.fit(X_train, y)
-    # print("cross_validation_rmse:", np.mean(np.sqrt(-cross_val_score(model, X_train, y, cv=3, scoring="neg_mean_squared_error"))))
-
-    # model = ElasticNetCV(alphas=[1, 0.1, 0.001, 0.0005], l1_ratio=[0, 0.2, 0.5, 0.7, 1.0], cv=5)
-    # model.fit(X_train, y)
-    # print({"alpha_": model.alpha_, "l1_ratio_": model.l1_ratio_})
-    # print("cross_validation_rmse:", np.mean(np.sqrt(-cross_val_score(model, X_train, y, cv=3, scoring="neg_mean_squared_error"))))
 
     # model prediction
     lasso_preds = np.expm1(model.predict(X_test))
