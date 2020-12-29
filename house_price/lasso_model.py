@@ -9,6 +9,9 @@ from sklearn.model_selection import cross_val_score
 from sklearn.preprocessing import StandardScaler
 
 from common import explore_none
+from scipy.stats import skew, norm
+from scipy.special import boxcox1p
+from scipy.stats import boxcox_normmax
 
 
 def load_data():
@@ -80,6 +83,15 @@ def log_transform_features(df):
     skewed_feats = df[numeric_feats].apply(lambda x: skew(x.dropna()))  # compute skewness
     skewed_feats = skewed_feats[skewed_feats > 0.5]
     skewed_feat_names = skewed_feats.index
+
+    # check boxcox_normmax against log() or 0.0
+    # for col in skewed_feat_names:
+    #     print({
+    #         "col": col,
+    #         "boxcox_lambda": boxcox_normmax(df[col].dropna() + 1)
+    #     })
+    # for col in skewed_feat_names:
+    #     df.loc[:, col] = boxcox1p(df[col], boxcox_normmax(df[col].dropna() + 1))
     df.loc[:, skewed_feat_names] = np.log1p(df[skewed_feat_names])
 
 
