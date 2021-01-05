@@ -8,3 +8,4 @@ mlxtend
 torch
 torchvision
 Pillow
+skorch
