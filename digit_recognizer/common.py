@@ -74,7 +74,7 @@ class Net(nn.Module):
                 nn.BatchNorm1d(512),
                 nn.ReLU(),
                 nn.Dropout(p=dropout),
-                nn.Linear(512, 10),
+                nn.Linear(512, 10)
             )
         else:
             self.features = nn.Sequential(
@@ -98,8 +98,7 @@ class Net(nn.Module):
                 nn.Linear(512, 512),
                 nn.ReLU(),
                 nn.Dropout(p=dropout),
-                nn.Linear(512, 10),
-                nn.Softmax(10)
+                nn.Linear(512, 10)
             )
 
         for m in self.features.children():
