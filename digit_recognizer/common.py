@@ -9,19 +9,9 @@ import logging
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from skorch import NeuralNet
 from torch.autograd import Variable
 from torch.optim import lr_scheduler
-import torch.nn.functional as F
-
-import torchvision
 from torch.utils.data import Dataset
-from sklearn.model_selection import GridSearchCV, ParameterGrid, ParameterSampler
-
-from torchvision import datasets, transforms
-import matplotlib.pyplot as plt
-from torchvision.transforms import RandomRotation, RandomHorizontalFlip, RandomAffine
-
 
 IMG_PIXELS = 784
 IMG_HEIGHT = 28
@@ -53,38 +43,64 @@ class MNIST_data(Dataset):
 
 
 class Net(nn.Module):
-    def __init__(self, dropout=0.5):
+    def __init__(self, dropout=0.5, batch_norm=True):
         super(Net, self).__init__()
 
-        self.features = nn.Sequential(
-            nn.Conv2d(1, 32, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(32),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(32, 32, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(32),
-            nn.ReLU(inplace=True),
-            nn.MaxPool2d(kernel_size=2, stride=2),
-            nn.Conv2d(32, 64, kernel_size=3, padding=1),
-            nn.BatchNorm2d(64),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(64, 64, kernel_size=3, padding=1),
-            nn.BatchNorm2d(64),
-            nn.ReLU(inplace=True),
-            nn.MaxPool2d(kernel_size=2, stride=2)
-        )
+        if batch_norm:
+            self.features = nn.Sequential(
+                nn.Conv2d(1, 32, kernel_size=3, stride=1, padding=1),
+                nn.BatchNorm2d(32),
+                nn.ReLU(),
+                nn.Conv2d(32, 32, kernel_size=3, stride=1, padding=1),
+                nn.BatchNorm2d(32),
+                nn.ReLU(),
+                nn.MaxPool2d(kernel_size=2, stride=2),
+                nn.Conv2d(32, 64, kernel_size=3, padding=1),
+                nn.BatchNorm2d(64),
+                nn.ReLU(),
+                nn.Conv2d(64, 64, kernel_size=3, padding=1),
+                nn.BatchNorm2d(64),
+                nn.ReLU(),
+                nn.MaxPool2d(kernel_size=2, stride=2)
+            )
 
-        self.classifier = nn.Sequential(
-            nn.Dropout(p=dropout),
-            nn.Linear(64 * 7 * 7, 512),
-            nn.BatchNorm1d(512),
-            nn.ReLU(inplace=True),
-            nn.Dropout(p=dropout),
-            nn.Linear(512, 512),
-            nn.BatchNorm1d(512),
-            nn.ReLU(inplace=True),
-            nn.Dropout(p=dropout),
-            nn.Linear(512, 10),
-        )
+            self.classifier = nn.Sequential(
+                nn.Dropout(p=dropout),
+                nn.Linear(64 * 7 * 7, 512),
+                nn.BatchNorm1d(512),
+                nn.ReLU(),
+                nn.Dropout(p=dropout),
+                nn.Linear(512, 512),
+                nn.BatchNorm1d(512),
+                nn.ReLU(),
+                nn.Dropout(p=dropout),
+                nn.Linear(512, 10),
+            )
+        else:
+            self.features = nn.Sequential(
+                nn.Conv2d(1, 32, kernel_size=3, stride=1, padding=1),
+                nn.ReLU(),
+                nn.Conv2d(32, 32, kernel_size=3, stride=1, padding=1),
+                nn.ReLU(),
+                nn.MaxPool2d(kernel_size=2, stride=2),
+                nn.Conv2d(32, 64, kernel_size=3, padding=1),
+                nn.ReLU(),
+                nn.Conv2d(64, 64, kernel_size=3, padding=1),
+                nn.ReLU(),
+                nn.MaxPool2d(kernel_size=2, stride=2)
+            )
+
+            self.classifier = nn.Sequential(
+                nn.Dropout(p=dropout),
+                nn.Linear(64 * 7 * 7, 512),
+                nn.ReLU(),
+                nn.Dropout(p=dropout),
+                nn.Linear(512, 512),
+                nn.ReLU(),
+                nn.Dropout(p=dropout),
+                nn.Linear(512, 10),
+                nn.Softmax(10)
+            )
 
         for m in self.features.children():
             if isinstance(m, nn.Conv2d):
@@ -109,12 +125,13 @@ class Net(nn.Module):
 
 
 class NeuralNetworkWrapper:
-    def __init__(self, dropout=0.5, lr=0.003, epochs=20, mini_batch=64, step_size=7, gamma=0.1, verbose=True):
+    def __init__(self, dropout=0.5, lr=0.003, epochs=20, mini_batch=64, step_size=7, gamma=0.1, batch_norm=True, verbose=True):
         self.dropout = dropout
+        self.batch_norm = batch_norm
         self.lr = lr
         self.epochs = epochs
         self.mini_batch = mini_batch
-        self.model = Net(dropout)
+        self.model = Net(dropout=dropout, batch_norm=batch_norm)
         self.optimizer = optim.Adam(self.model.parameters(), lr=lr)
         self.criterion = nn.CrossEntropyLoss()
         self.exp_lr_scheduler = lr_scheduler.StepLR(self.optimizer, step_size=step_size, gamma=gamma)
