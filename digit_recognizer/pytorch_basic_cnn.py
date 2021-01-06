@@ -73,4 +73,4 @@ def build_cnn(params):
 
 
 if __name__ == "__main__":
-    build_cnn(params={'dropout': 0, 'epochs': 100, 'gamma': 0.5, 'lr': 0.003, 'mini_batch': 128, 'batch_norm': True})
+    build_cnn(params={'dropout': 0, 'epochs': 100, 'gamma': 0.5, 'lr': 0.003, 'mini_batch': 64, 'batch_norm': True})
