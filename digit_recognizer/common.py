@@ -120,7 +120,10 @@ class NeuralNetworkWrapper:
         self.exp_lr_scheduler = lr_scheduler.StepLR(self.optimizer, step_size=step_size, gamma=gamma)
         self.verbose = verbose
 
-    def fit(self, data_loader):
+    def fit(self, data_loader, evaluator_loader=None):
+        if evaluator_loader:
+            epoch_accuracies = []
+
         for epoch in range(self.epochs):
             self.model.train()
             for batch_idx, (data, target) in enumerate(data_loader):
@@ -142,6 +145,14 @@ class NeuralNetworkWrapper:
                                })
                 self.optimizer.step()
             self.exp_lr_scheduler.step()
+
+            if evaluator_loader:
+                evaluation_accuracy = self.validate_accuracy(evaluator_loader)
+                print({"epoch": epoch, "evaluation_accuracy": evaluation_accuracy})
+                epoch_accuracies.append({"epoch": epoch, "evaluation_accuracy": evaluation_accuracy})
+
+        if evaluator_loader:
+            return epoch_accuracies
 
     def validate_accuracy(self, data_loader):
         self.model.eval()
@@ -166,11 +177,13 @@ class NeuralNetworkWrapper:
     def predict(self, data_loader):
         self.model.eval()
         test_pred = torch.LongTensor()
-        for i, data in enumerate(data_loader):
-            data = Variable(data, volatile=True)
-            if torch.cuda.is_available():
-                data = data.cuda()
-            output = self.model(data)
-            pred = output.cpu().data.max(1, keepdim=True)[1]
-            test_pred = torch.cat((test_pred, pred), dim=0)
-        return test_pred.numpy()
+
+        with torch.no_grad():
+            for i, data in enumerate(data_loader):
+                data = Variable(data)
+                if torch.cuda.is_available():
+                    data = data.cuda()
+                output = self.model(data)
+                pred = output.cpu().data.max(1, keepdim=True)[1]
+                test_pred = torch.cat((test_pred, pred), dim=0)
+            return test_pred.numpy()

@@ -69,7 +69,7 @@ def build_cnn(params):
 
     out_df = pd.read_csv(os.path.dirname(__file__) + "/data/sample_submission.csv")
     out_df.loc[:, 'Label'] = model_wrapper.predict(test_loader)
-    out_df.to_csv(os.path.dirname(__file__) + '/submission_v3.csv', index=False)
+    out_df.to_csv(os.path.dirname(__file__) + '/submission_v100.csv', index=False)
 
 
 if __name__ == "__main__":
