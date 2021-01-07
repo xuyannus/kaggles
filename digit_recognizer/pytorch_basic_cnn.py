@@ -69,8 +69,8 @@ def build_cnn(params):
 
     out_df = pd.read_csv(os.path.dirname(__file__) + "/data/sample_submission.csv")
     out_df.loc[:, 'Label'] = model_wrapper.predict(test_loader)
-    out_df.to_csv(os.path.dirname(__file__) + '/submission_v100.csv', index=False)
+    out_df.to_csv(os.path.dirname(__file__) + '/submission_v100_raw.csv', index=False)
 
 
 if __name__ == "__main__":
-    build_cnn(params={'dropout': 0, 'epochs': 100, 'gamma': 0.5, 'lr': 0.003, 'mini_batch': 64, 'batch_norm': True})
+    build_cnn(params={'dropout': 0, 'epochs': 100, 'gamma': 0.5, 'lr': 0.003, 'mini_batch': 64, 'batch_norm': True, 'weight_decay': 0, 'shrink_lr': True})

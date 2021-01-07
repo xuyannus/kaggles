@@ -124,16 +124,17 @@ class Net(nn.Module):
 
 
 class NeuralNetworkWrapper:
-    def __init__(self, dropout=0.5, lr=0.003, epochs=20, mini_batch=64, step_size=7, gamma=0.1, batch_norm=True, verbose=True):
+    def __init__(self, dropout=0.5, lr=0.003, weight_decay=0.0, epochs=20, mini_batch=64, step_size=7, gamma=0.1, batch_norm=True, shrink_lr=True, verbose=True):
         self.dropout = dropout
         self.batch_norm = batch_norm
         self.lr = lr
         self.epochs = epochs
         self.mini_batch = mini_batch
         self.model = Net(dropout=dropout, batch_norm=batch_norm)
-        self.optimizer = optim.Adam(self.model.parameters(), lr=lr)
+        self.optimizer = optim.Adam(self.model.parameters(), lr=lr, weight_decay=weight_decay)
         self.criterion = nn.CrossEntropyLoss()
         self.exp_lr_scheduler = lr_scheduler.StepLR(self.optimizer, step_size=step_size, gamma=gamma)
+        self.shrink_lr = shrink_lr
         self.verbose = verbose
 
     def fit(self, data_loader, evaluator_loader=None):
@@ -151,6 +152,7 @@ class NeuralNetworkWrapper:
                 output = self.model(data)
                 loss = self.criterion(output, target)
                 loss.backward()
+                self.optimizer.step()
 
                 if self.verbose:
                     if (batch_idx + 1) % 100 == 0:
@@ -159,8 +161,8 @@ class NeuralNetworkWrapper:
                                "Total": len(data_loader.dataset),
                                "Local Loss": loss.data.item()
                                })
-                self.optimizer.step()
-            self.exp_lr_scheduler.step()
+            if self.shrink_lr:
+                self.exp_lr_scheduler.step()
 
             if evaluator_loader:
                 evaluation_accuracy = self.validate_accuracy(evaluator_loader)

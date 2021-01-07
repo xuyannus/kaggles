@@ -50,17 +50,22 @@ def cnn_tuning():
     #     'dropout': [0, 0.3, 0.5],
     #     'mini_batch': [64, 128],
     #     'gamma': [0.1, 0.5, 1.0],
-    #     'epochs': [20, 50]
+    #     'epochs': [20, 50],
+    #      'weight_decay': [0, 0.001, 0.01, 0.1],
+    #      'shrink_lr': [True, False]
     # }
+
     param_grid = {
         'lr': [0.003],
         'dropout': [0],
-        'mini_batch': [128],
+        'mini_batch': [64],
         'gamma': [0.5],
-        'epochs': [50]
+        'epochs': [20],
+        'weight_decay': [0],
+        'shrink_lr': [True]
     }
 
-    k = 3
+    k = 1
     optimal_param = None
     optimal_accuracy = 0
 
@@ -77,7 +82,7 @@ def cnn_tuning():
         logging.info({
             "params": params,
             "accuracy": np.mean(accuracy_list),
-            "accuracy_list": np.np.array2string(accuracy_list, precision=6, separator=','),
+            "accuracy_list": np.array2string(np.array(accuracy_list), precision=6, separator=','),
         })
 
         if np.mean(accuracy_list) > optimal_accuracy:
@@ -90,7 +95,7 @@ def cnn_tuning():
     })
 
 
-# optimal: {'dropout': 0, 'epochs': 50, 'gamma': 0.5, 'lr': 0.003, 'mini_batch': 128}
+# optimal: {'dropout': 0, 'epochs': 50, 'gamma': 0.5, 'lr': 0.003, 'mini_batch': 64}
 # Validation Accuracy: 'accuracy_list': [tensor(0.9949), tensor(0.9958), tensor(0.9942)], 'accuracy': 0.9949905
 if __name__ == "__main__":
     logging.basicConfig(filename=os.path.dirname(__file__) + '/data/digit.log', level=logging.INFO)
