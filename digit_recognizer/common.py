@@ -12,6 +12,7 @@ import torch.optim as optim
 from torch.autograd import Variable
 from torch.optim import lr_scheduler
 from torch.utils.data import Dataset
+from torchvision import datasets, models
 
 IMG_PIXELS = 784
 IMG_HEIGHT = 28
@@ -205,3 +206,27 @@ class NeuralNetworkWrapper:
                 pred = output.cpu().data.max(1, keepdim=True)[1]
                 test_pred = torch.cat((test_pred, pred), dim=0)
             return test_pred.numpy()
+
+
+class TransferVGGFixLayersNet(NeuralNetworkWrapper):
+    def __init__(self, classes=10, lr=0.003, weight_decay=0.0, epochs=20, mini_batch=64, step_size=7, gamma=0.1):
+        super().__init__(lr=lr, weight_decay=weight_decay, step_size=step_size, gamma=gamma, epochs=epochs, mini_batch=mini_batch)
+        # pytorch implementation: https://github.com/pytorch/vision/blob/master/torchvision/models/vgg.py
+        self.model = models.vgg16(pretrained=True)
+
+        # convert 1 channel to 3 channels expected by VGG
+        first_conv_layer = [nn.Conv2d(1, 3, kernel_size=3, stride=1, padding=1, dilation=1, groups=1, bias=True)]
+        first_conv_layer.extend(list(self.model.features))
+        self.model.features = nn.Sequential(*first_conv_layer)
+
+        # fix all parameters not changed (both feature layers and classifier layers)
+        for param in self.model.parameters():
+            param.requires_grad = False
+
+        # only tune the last linear layer
+        self.model.classifier[-1] = nn.Linear(self.model.classifier[-1].in_features, classes)
+
+        # the same as standard neural network training
+        self.criterion = nn.CrossEntropyLoss()
+        self.exp_lr_scheduler = lr_scheduler.StepLR(self.optimizer, step_size=step_size, gamma=gamma)
+        self.optimizer = optim.Adam(self.model.parameters(), lr=lr, weight_decay=weight_decay)
