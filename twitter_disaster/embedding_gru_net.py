@@ -44,7 +44,7 @@ class GRUClassifier(nn.Module):
 
 
 class GRUNet:
-    def __init__(self, lr=0.001, epochs=30, vocab_size=1000, batch_size=100, hidden_size=128, n_layers=2, verbose=False):
+    def __init__(self, lr=0.1, epochs=30, vocab_size=1000, batch_size=100, hidden_size=128, n_layers=2, verbose=False):
         self.lr = lr
         self.epochs = epochs
         self.vocab_size = vocab_size
@@ -140,8 +140,8 @@ class GRUDataSet(Dataset):
         self.token2idx = self.vectorizer.vocabulary_
         self.token2idx['<PAD>'] = max(self.token2idx.values()) + 1
 
-        tokenizer = self.vectorizer.build_analyzer()
-        self.text_encoding_fun = lambda x: [self.token2idx[token] for token in tokenizer(x) if token in self.token2idx]
+        self.tokenizer = self.vectorizer.build_analyzer()
+        self.text_encoding_fun = lambda x: [self.token2idx[token] for token in self.tokenizer(x) if token in self.token2idx]
         self.padding_fun = lambda x: x + (max_seq_len - len(x)) * [self.token2idx['<PAD>']]
 
         sequences = [self.text_encoding_fun(x)[:max_seq_len] for x in df.text.tolist()]
@@ -150,6 +150,26 @@ class GRUDataSet(Dataset):
 
     def __getitem__(self, i):
         return self.sequences[i], self.labels[i]
+
+    def __len__(self):
+        return len(self.sequences)
+
+
+class GRUTestDataSet(Dataset):
+    def __init__(self, path, max_seq_len, vectorizer, tokenizer):
+        self.max_seq_len = max_seq_len
+        df = pd.read_csv(path)
+        self.vectorizer = vectorizer
+
+        self.token2idx = self.vectorizer.vocabulary_
+        self.text_encoding_fun = lambda x: [self.token2idx[token] for token in tokenizer(x) if token in self.token2idx]
+        self.padding_fun = lambda x: x + (max_seq_len - len(x)) * [self.token2idx['<PAD>']]
+
+        sequences = [self.text_encoding_fun(x)[:max_seq_len] for x in df.text.tolist()]
+        self.sequences = [self.padding_fun(sequence) for sequence in sequences]
+
+    def __getitem__(self, i):
+        return self.sequences[i]
 
     def __len__(self):
         return len(self.sequences)
