@@ -13,3 +13,5 @@ skorch
 pyspellchecker
 nltk
 spacy
+pytorch_pretrained_bert
+tensorboardcolab
