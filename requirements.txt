@@ -7,5 +7,9 @@ xgboost
 mlxtend
 torch
 torchvision
+torchtext
 Pillow
 skorch
+pyspellchecker
+nltk
+spacy
