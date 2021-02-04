@@ -1,14 +1,15 @@
 import pandas as pd
 import torch
+import os
 from torch.utils.data import DataLoader
 from twitter_disaster.bag_of_word_net import BagOfWordNet, BagWordDataSet, BagWordTestDataSet
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-TRAIN_DATA_PATH = "/Users/yanxu/Documents/kaggles/twitter_disaster/data/train_v2.csv"
-TEST_DATA_PATH = "/Users/yanxu/Documents/kaggles/twitter_disaster/data/test_v2.csv"
-SUB_DATA_PATH = "/Users/yanxu/Documents/kaggles/twitter_disaster/data/sample_submission.csv"
-PRED_DATA_PATH = "/Users/yanxu/Documents/kaggles/twitter_disaster/data/sample_submission_2.csv"
+TRAIN_DATA_PATH = os.path.dirname(__file__) + "data/train_v2.csv"
+TEST_DATA_PATH = os.path.dirname(__file__) + "data/test_v2.csv"
+SUB_DATA_PATH = os.path.dirname(__file__) + "data/sample_submission.csv"
+PRED_DATA_PATH = os.path.dirname(__file__) + "data/sample_submission_2.csv"
 
 dataset = BagWordDataSet(TRAIN_DATA_PATH)
 train_size = int(0.8 * len(dataset))
