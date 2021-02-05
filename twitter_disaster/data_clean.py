@@ -4,6 +4,7 @@ import re
 train = pd.read_csv("/Users/yanxu/Documents/kaggles/twitter_disaster/data/train.csv")
 test = pd.read_csv("/Users/yanxu/Documents/kaggles/twitter_disaster/data/test.csv")
 
+SPACE_PATTERN = re.compile(r'%20')
 URL_PATTERN = re.compile(r'https?://\S+|www\.\S+')
 TAG_PATTERN = re.compile(r'<.*?>')
 TOKEN_PATTERN = re.compile(r'[^A-Za-z0-9 ]+')
@@ -19,6 +20,7 @@ def concat_string_and_clean(x):
         message += x["text"]
 
     message = message.lower()
+    message = SPACE_PATTERN.sub(' ', message)
     message = URL_PATTERN.sub('', message)
     message = TAG_PATTERN.sub('', message)
     message = TOKEN_PATTERN.sub('', message)

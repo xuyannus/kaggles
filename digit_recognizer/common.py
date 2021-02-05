@@ -162,6 +162,8 @@ class NeuralNetworkWrapper:
                                "Total": len(data_loader.dataset),
                                "Local Loss": loss.data.item()
                                })
+
+            # must be after the entire epoch finishes
             if self.shrink_lr:
                 self.exp_lr_scheduler.step()
 
