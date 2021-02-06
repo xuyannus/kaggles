@@ -33,7 +33,8 @@ class GloveClassifier(nn.Module):
         # in this model, we will import embedding vector directly
         self.rnn = nn.GRU(embedding_dimension, hidden_size, num_layers=n_layers, batch_first=True, )
         self.fc1 = nn.Linear(hidden_size, hidden1)
-        self.fc2 = nn.Linear(hidden1, 1)
+        self.fc2 = nn.Linear(hidden1, hidden2)
+        self.fc3 = nn.Linear(hidden2, 1)
 
     def init_hidden(self):
         return torch.randn(self.n_layers, self.batch_size, self.hidden_size).to(self.device)
@@ -48,7 +49,8 @@ class GloveClassifier(nn.Module):
         x = output[:, -1, :].squeeze()
 
         x = F.relu(self.fc1(x))
-        return self.fc2(x)
+        x = F.relu(self.fc2(x))
+        return self.fc3(x)
 
 
 class GloveNet:
@@ -169,15 +171,21 @@ def text_embed(words, glove_embedding):
 
 class GloveDataSet(Dataset):
     def __init__(self, path, max_seq_len):
+        self.max_seq_len = max_seq_len
         df = pd.read_csv(path)
         self.glove_embedding = load_glove_embedding(dimension=EMBEDDING_DIMENSION, verbose=True)
         df.loc[:, "text"] = df["text"].apply(lambda x: text_embed(x, self.glove_embedding))
         df.dropna(inplace=True)
 
-        self.padding_fun = lambda x: np.concatenate((x, np.array( (max_seq_len - x.shape[0]) * [self.glove_embedding['<PAD>']] )), axis=0)
         sequences = [x[:max_seq_len] for x in df.text.tolist()]
         self.sequences = [self.padding_fun(x) for x in sequences]
         self.labels = df.target.tolist()
+
+    def padding_fun(self, x):
+        if x.shape[0] >= self.max_seq_len:
+            return x
+        padding = np.array((self.max_seq_len - x.shape[0]) * [self.glove_embedding['<PAD>']])
+        return np.concatenate((x, padding), axis=0)
 
     def __getitem__(self, i):
         return self.sequences[i], self.labels[i]
@@ -189,14 +197,20 @@ class GloveDataSet(Dataset):
 class GloveTestDataSet(Dataset):
     def __init__(self, path, max_seq_len, glove_embedding):
         self.glove_embedding = glove_embedding
+        self.max_seq_len = max_seq_len
         df = pd.read_csv(path)
 
         df.loc[:, "text"] = df["text"].apply(lambda x: text_embed(x, self.glove_embedding))
         df.dropna(inplace=True)
 
-        self.padding_fun = lambda x: np.concatenate((x, np.array( (max_seq_len - x.shape[0]) * [self.glove_embedding['<PAD>']] )), axis=0)
         sequences = [x[:max_seq_len] for x in df.text.tolist()]
         self.sequences = [self.padding_fun(x) for x in sequences]
+
+    def padding_fun(self, x):
+        if x.shape[0] >= self.max_seq_len:
+            return x
+        padding = np.array((self.max_seq_len - x.shape[0]) * [self.glove_embedding['<PAD>']])
+        return np.concatenate((x, padding), axis=0)
 
     def __getitem__(self, i):
         return self.sequences[i]

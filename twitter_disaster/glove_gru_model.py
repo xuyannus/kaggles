@@ -8,7 +8,7 @@ from twitter_disaster.glove_gru_net import GloveDataSet, GloveNet, GloveTestData
 TRAIN_DATA_PATH = os.path.dirname(__file__) + "data/train_v2.csv"
 TEST_DATA_PATH = os.path.dirname(__file__) + "data/test_v2.csv"
 SUB_DATA_PATH = os.path.dirname(__file__) + "data/sample_submission.csv"
-PRED_DATA_PATH = os.path.dirname(__file__) + "data/sample_submission_glove_gru_v3.csv"
+PRED_DATA_PATH = os.path.dirname(__file__) + "data/sample_submission_glove_gru_v6.csv"
 
 dataset = GloveDataSet(TRAIN_DATA_PATH, max_seq_len=30)
 train_size = int(0.8 * len(dataset))
@@ -29,7 +29,6 @@ def collate_test(batch):
 
 train_loader = DataLoader(train_dataset, batch_size=64, collate_fn=collate, shuffle=True)
 evaluator_loader = DataLoader(evaluator_dataset, batch_size=64, collate_fn=collate, shuffle=True)
-
 model = GloveNet(epochs=10, embedding_dimension=EMBEDDING_DIMENSION, batch_size=64, verbose=True)
 model.fit(train_loader, evaluator_loader)
 
