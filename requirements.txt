@@ -15,3 +15,5 @@ nltk
 spacy
 pytorch_pretrained_bert
 tensorboardcolab
+librosa
+scikit-image
